@@ -63,10 +63,10 @@ for name, path in MODELS.items():
     except Exception as e:
         logging.warning(f"Warning: Failed to load model '{name}' from {path}: {e}. Skipping.")
 
-# This is the order of features the models were trained on (from params.yaml)
+# This is the order of features the models were trained on (lagged by 1 in preprocessing)
 FEATURE_ORDER = [
-    'Global_reactive_power', 'Voltage', 'Global_intensity', 'Sub_metering_1',
-    'Sub_metering_2', 'Sub_metering_3', 'hour_of_day', 'day_of_week', 'month', 'year'
+    'Global_reactive_power_lag1', 'Voltage_lag1', 'Global_intensity_lag1', 'Sub_metering_1_lag1',
+    'Sub_metering_2_lag1', 'Sub_metering_3_lag1', 'hour_of_day_lag1', 'day_of_week_lag1', 'month_lag1', 'year_lag1'
 ]
 
 # --- 3. Define the web routes ---
@@ -103,16 +103,18 @@ def predict():
         
         dt_object = datetime.fromisoformat(datetime_str)
         
+        # Models expect lagged features ("_lag1"); we approximate by using the provided
+        # current values as the previous timestep values for inference.
         features = {
-            'hour_of_day': dt_object.hour,
-            'day_of_week': dt_object.weekday(),
-            'month': dt_object.month,
-            'year': dt_object.year
+            'hour_of_day_lag1': dt_object.hour,
+            'day_of_week_lag1': dt_object.weekday(),
+            'month_lag1': dt_object.month,
+            'year_lag1': dt_object.year
         }
 
         # --- Assemble the full feature set ---
         for key in ['Global_reactive_power', 'Voltage', 'Global_intensity', 'Sub_metering_1', 'Sub_metering_2', 'Sub_metering_3']:
-            features[key] = float(form_values[key])
+            features[f"{key}_lag1"] = float(form_values[key])
 
         # --- Prepare data for the model ---
         input_df = pd.DataFrame([features], columns=FEATURE_ORDER)
